@@ -1,0 +1,201 @@
+Script SQL 
+-- =============================================
+-- TABLA: INSTITUCION_EDUCATIVA
+-- =============================================
+CREATE TABLE INSTITUCION_EDUCATIVA (
+    idInstitucion INT AUTO_INCREMENT PRIMARY KEY,
+    nombreInstitucion VARCHAR(200) NOT NULL,
+    tipo ENUM('pública', 'privada') NOT NULL,
+    direccion VARCHAR(250),
+    distrito VARCHAR(100),
+    provincia VARCHAR(100),
+    region VARCHAR(100),
+    codigoModular VARCHAR(10) UNIQUE,
+    contacto VARCHAR(100),
+    INDEX idx_nombre (nombreInstitucion),
+    INDEX idx_region (region)
+) ENGINE=InnoDB;
+
+-- =============================================
+-- TABLA: USUARIO
+-- =============================================
+CREATE TABLE USUARIO (
+    idUsuario INT AUTO_INCREMENT PRIMARY KEY,
+    nombre VARCHAR(100) NOT NULL,
+    apellido VARCHAR(100) NOT NULL,
+    correo VARCHAR(150) UNIQUE NOT NULL,
+    contrasena VARCHAR(255) NOT NULL,
+    fechaNacimiento DATE,
+    idInstitucion INT,
+    grado TINYINT CHECK (grado BETWEEN 1 AND 5),
+    seccion VARCHAR(10),
+    fechaRegistro TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    ultimoAcceso TIMESTAMP NULL,
+    estado ENUM('activo', 'inactivo') DEFAULT 'activo',
+    FOREIGN KEY (idInstitucion) REFERENCES INSTITUCION_EDUCATIVA(idInstitucion)
+        ON DELETE SET NULL
+        ON UPDATE CASCADE,
+    INDEX idx_correo (correo),
+    INDEX idx_institucion (idInstitucion),
+    INDEX idx_estado (estado)
+) ENGINE=InnoDB;
+
+-- =============================================
+-- TABLA: CONSUMO_DIARIO
+-- =============================================
+CREATE TABLE CONSUMO_DIARIO (
+    idConsumo INT AUTO_INCREMENT PRIMARY KEY,
+    idUsuario INT NOT NULL,
+    fecha DATE NOT NULL,
+    litrosUsados DECIMAL(8,2) NOT NULL CHECK (litrosUsados >= 0),
+    tipoActividad ENUM('ducha', 'lavado_manos', 'lavado_ropa', 
+                       'riego', 'cocina', 'otros') DEFAULT 'otros',
+    duracionMinutos INT CHECK (duracionMinutos >= 0),
+    horaRegistro TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    observaciones TEXT,
+    FOREIGN KEY (idUsuario) REFERENCES USUARIO(idUsuario)
+        ON DELETE CASCADE
+        ON UPDATE CASCADE,
+    INDEX idx_usuario_fecha (idUsuario, fecha),
+    INDEX idx_fecha (fecha),
+    UNIQUE KEY uk_usuario_fecha_actividad (idUsuario, fecha, tipoActividad)
+) ENGINE=InnoDB;
+
+-- =============================================
+-- TABLA: RETO
+-- =============================================
+CREATE TABLE RETO (
+    idReto INT AUTO_INCREMENT PRIMARY KEY,
+    nombreReto VARCHAR(150) NOT NULL,
+    descripcion TEXT NOT NULL,
+    objetivo VARCHAR(200),
+    puntosRecompensa INT DEFAULT 0 CHECK (puntosRecompensa >= 0),
+    categoria ENUM('individual', 'grupal') DEFAULT 'individual',
+    fechaInicio DATE NOT NULL,
+    fechaFin DATE NOT NULL,
+    nivelDificultad ENUM('fácil', 'medio', 'difícil') DEFAULT 'medio',
+    estado ENUM('activo', 'finalizado', 'cancelado') DEFAULT 'activo',
+    CHECK (fechaFin >= fechaInicio),
+    INDEX idx_fechas (fechaInicio, fechaFin),
+    INDEX idx_estado (estado)
+) ENGINE=InnoDB;
+
+-- =============================================
+-- TABLA: USUARIO_RETO
+-- =============================================
+CREATE TABLE USUARIO_RETO (
+    idUsuarioReto INT AUTO_INCREMENT PRIMARY KEY,
+    idUsuario INT NOT NULL,
+    idReto INT NOT NULL,
+    fechaInscripcion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    progreso DECIMAL(5,2) DEFAULT 0.00 CHECK (progreso BETWEEN 0 AND 100),
+    completado BOOLEAN DEFAULT FALSE,
+    fechaCompletado TIMESTAMP NULL,
+    puntosObtenidos INT DEFAULT 0,
+    FOREIGN KEY (idUsuario) REFERENCES USUARIO(idUsuario)
+        ON DELETE CASCADE
+        ON UPDATE CASCADE,
+    FOREIGN KEY (idReto) REFERENCES RETO(idReto)
+        ON DELETE CASCADE
+        ON UPDATE CASCADE,
+    UNIQUE KEY uk_usuario_reto (idUsuario, idReto),
+    INDEX idx_completado (completado),
+    INDEX idx_usuario (idUsuario)
+) ENGINE=InnoDB;
+
+-- =============================================
+-- TABLA: CONSEJO
+-- =============================================
+CREATE TABLE CONSEJO (
+    idConsejo INT AUTO_INCREMENT PRIMARY KEY,
+    titulo VARCHAR(200) NOT NULL,
+    contenido TEXT NOT NULL,
+    categoria ENUM('ahorro', 'reciclaje', 'educativo', 'general') DEFAULT 'general',
+    nivelEducativo ENUM('primaria', 'secundaria', 'general') DEFAULT 'secundaria',
+    fechaPublicacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    autor VARCHAR(100),
+    imagenURL VARCHAR(300),
+    vecesVisto INT DEFAULT 0,
+    INDEX idx_categoria (categoria),
+    INDEX idx_nivel (nivelEducativo)
+) ENGINE=InnoDB;
+
+-- =============================================
+-- TABLA: LOGRO
+-- =============================================
+CREATE TABLE LOGRO (
+    idLogro INT AUTO_INCREMENT PRIMARY KEY,
+    nombreLogro VARCHAR(150) NOT NULL,
+    descripcion TEXT,
+    iconoURL VARCHAR(300),
+    puntosRequeridos INT DEFAULT 0,
+    tipoLogro ENUM('bronce', 'plata', 'oro', 'especial') DEFAULT 'bronce',
+    requisito VARCHAR(200),
+    INDEX idx_tipo (tipoLogro)
+) ENGINE=InnoDB;
+
+-- =============================================
+-- TABLA: USUARIO_LOGRO
+-- =============================================
+CREATE TABLE USUARIO_LOGRO (
+    idUsuarioLogro INT AUTO_INCREMENT PRIMARY KEY,
+    idUsuario INT NOT NULL,
+    idLogro INT NOT NULL,
+    fechaObtencion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    visible BOOLEAN DEFAULT TRUE,
+    FOREIGN KEY (idUsuario) REFERENCES USUARIO(idUsuario)
+        ON DELETE CASCADE
+        ON UPDATE CASCADE,
+    FOREIGN KEY (idLogro) REFERENCES LOGRO(idLogro)
+        ON DELETE CASCADE
+        ON UPDATE CASCADE,
+    UNIQUE KEY uk_usuario_logro (idUsuario, idLogro),
+    INDEX idx_fecha (fechaObtencion)
+) ENGINE=InnoDB;
+
+-- =============================================
+-- TABLA: NOTIFICACION
+-- =============================================
+CREATE TABLE NOTIFICACION (
+    idNotificacion INT AUTO_INCREMENT PRIMARY KEY,
+    idUsuario INT NOT NULL,
+    tipoNotificacion ENUM('recordatorio', 'logro', 'consejo', 'reto', 'sistema') 
+                     DEFAULT 'sistema',
+    titulo VARCHAR(150) NOT NULL,
+    mensaje TEXT NOT NULL,
+    fechaEnvio TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    leida BOOLEAN DEFAULT FALSE,
+    fechaLectura TIMESTAMP NULL,
+    FOREIGN KEY (idUsuario) REFERENCES USUARIO(idUsuario)
+        ON DELETE CASCADE
+        ON UPDATE CASCADE,
+    INDEX idx_usuario_leida (idUsuario, leida),
+    INDEX idx_fecha (fechaEnvio)
+) ENGINE=InnoDB;
+
+
+
+
+Procedimientos almacenados, vistas y triggers}
+Procedimiento: Registrar consumo
+CREATE PROCEDURE sp_registrarConsumo(IN p_idUsuario INT, IN p_litros DECIMAL(6,2))
+BEGIN
+   INSERT INTO ConsumoDiario(fecha, litrosUsados, idUsuario)
+   VALUES (CURDATE(), p_litros, p_idUsuario);
+END;
+Vista: Ranking de usuarios
+CREATE VIEW vw_ranking AS
+SELECT U.nombre, SUM(C.litrosUsados) AS total
+FROM Usuario U
+JOIN ConsumoDiario C ON U.idUsuario = C.idUsuario
+GROUP BY U.idUsuario
+ORDER BY total ASC;
+Trigger: Alerta de consumo
+CREATE TRIGGER trg_consumoAlto
+AFTER INSERT ON ConsumoDiario
+FOR EACH ROW
+BEGIN
+   IF NEW.litrosUsados > 50 THEN
+      SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Consumo excesivo';
+   END IF;
+END;
